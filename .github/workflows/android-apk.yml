@@ -1,6 +1,6 @@
 name: Build Bluey Buddy APK
 
-on:
+'on':
 workflow_dispatch:
 push:
 branches:
@@ -22,7 +22,7 @@ steps:
     uses: actions/setup-java@v4
     with:
       distribution: temurin
-      java-version: "17"
+      java-version: '17'
 
   - name: Set up Android SDK
     uses: android-actions/setup-android@v3
@@ -30,28 +30,30 @@ steps:
   - name: Install Android SDK packages
     shell: bash
     run: |
-      SDKMANAGER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+      SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+      SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1)"
 
       if [ -z "$SDKMANAGER" ]; then
-        echo "::error::Android SDK Manager not found."
+        echo "::error::sdkmanager was not found."
         echo "ANDROID_HOME=${ANDROID_HOME:-not set}"
+        echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-not set}"
         exit 1
       fi
 
-      echo "Using SDK Manager: $SDKMANAGER"
+      echo "Found SDK Manager: $SDKMANAGER"
       yes | "$SDKMANAGER" --licenses || true
       "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
     with:
-      gradle-version: "8.7"
+      gradle-version: '8.7'
 
   - name: Build debug APK
-    shell: bash
     run: gradle --no-daemon assembleDebug
 
-  - name: Upload APK
+  - name: Upload APK artifact
+    if: success()
     uses: actions/upload-artifact@v4
     with:
       name: BlueyBuddy-debug-apk
