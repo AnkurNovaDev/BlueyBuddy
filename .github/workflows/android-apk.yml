@@ -24,11 +24,8 @@ jobs:
       - name: Extract Android project
         shell: bash
         run: |
-          if [ ! -f "BlueyBuddy-GitHub-Upload.zip" ]; then
-            echo "::error::Project ZIP file not found."
-            exit 1
-          fi
-
+          set -euo pipefail
+          test -f BlueyBuddy-GitHub-Upload.zip
           mkdir -p source
           unzip -q BlueyBuddy-GitHub-Upload.zip -d source
 
@@ -51,9 +48,39 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Align Kotlin standard library versions
+        working-directory: source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          gradle_file = Path("app/build.gradle")
+          text = gradle_file.read_text(encoding="utf-8")
+
+          alignment = """configurations.configureEach {
+              resolutionStrategy.eachDependency {
+                  if (requested.group == 'org.jetbrains.kotlin') {
+                      useVersion '1.8.22'
+                  }
+              }
+          }
+
+          """
+
+          if "resolutionStrategy.eachDependency" not in text:
+              marker = "dependencies {"
+              if marker not in text:
+                  raise SystemExit("Could not find dependencies block in app/build.gradle")
+              text = text.replace(marker, alignment + marker, 1)
+              gradle_file.write_text(text, encoding="utf-8")
+
+          print("Kotlin dependencies aligned to 1.8.22")
+          PY
+
       - name: Build debug APK
         working-directory: source
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon clean assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
