@@ -15,10 +15,10 @@ name: Build debug APK
 runs-on: ubuntu-latest
 
 steps:
-  - name: Checkout repository
+  - name: Checkout code
     uses: actions/checkout@v4
 
-  - name: Set up Java 17
+  - name: Set up Java
     uses: actions/setup-java@v4
     with:
       distribution: temurin
@@ -27,20 +27,15 @@ steps:
   - name: Set up Android SDK
     uses: android-actions/setup-android@v3
 
-  - name: Install Android SDK packages
-    shell: bash
+  - name: Install SDK packages
     run: |
-      SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-      SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager 2>/dev/null | head -n 1)"
-
+      echo "ANDROID_HOME=$ANDROID_HOME"
+      echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+      SDKMANAGER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}" /opt/android-sdk /usr/local/lib/android/sdk -type f -name sdkmanager 2>/dev/null | head -n 1)"
       if [ -z "$SDKMANAGER" ]; then
-        echo "::error::sdkmanager was not found."
-        echo "ANDROID_HOME=${ANDROID_HOME:-not set}"
-        echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-not set}"
+        echo "::error::Could not find sdkmanager"
         exit 1
       fi
-
-      echo "Found SDK Manager: $SDKMANAGER"
       yes | "$SDKMANAGER" --licenses || true
       "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
@@ -49,10 +44,10 @@ steps:
     with:
       gradle-version: '8.7'
 
-  - name: Build debug APK
+  - name: Build APK
     run: gradle --no-daemon assembleDebug
 
-  - name: Upload APK artifact
+  - name: Upload APK
     if: success()
     uses: actions/upload-artifact@v4
     with:
